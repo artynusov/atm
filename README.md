@@ -6,7 +6,7 @@ ATM emulator provides simple command line interface.
 
 Initialize ATM with money:
 
-    python cli.py <comma-separated list with note counts, e.g. 50=5,20=10>
+    python cli.py init <comma-separated list with note counts, e.g. 50=5,20=10>
 
 Show current note counts:
 
