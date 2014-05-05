@@ -2,18 +2,22 @@ import tempfile
 import shutil
 from unittest import TestCase, main
 
+from mock import patch, Mock
+
 import atm
+import cli
 
 
 class BaseTestCase(TestCase):
 
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
-        self._notes_path_orig = atm.NOTES_PATH
-        atm.NOTES_PATH = '{}/db'.format(self.tmpdir)
+        self.patcher = patch.multiple(
+            '__main__.atm', NOTES_PATH='{}/db'.format(self.tmpdir))
+        self.patcher.start()
 
     def tearDown(self):
-        atm.NOTES_PATH = self._notes_path_orig
+        self.patcher.stop
         shutil.rmtree(self.tmpdir)
 
 
@@ -82,6 +86,39 @@ class AtmTests(BaseTestCase):
         self.assertEqual(a.notes.get_notes(), {20: 0, 50: 0})
 
         self.assertEqual(a.dispense(100), None)
+
+
+class TestCLI(TestCase):
+
+    def setUp(self):
+        self.patcher = patch('cli.Atm')
+        mock = self.patcher.start()
+        self.atm_mock = mock.return_value = Mock()
+
+    def tearDown(self):
+        self.patcher.stop()
+
+    def test_init(self):
+        cmd = cli.InitCommand()
+        cmd.handle(['50=1,30=2'])
+        self.atm_mock.notes.init.assert_called_once_with({50: 1, 30: 2})
+
+    @patch('__builtin__.print')
+    def test_status(self, print_mock):
+        self.atm_mock.notes.get_notes.return_value = {20: 10}
+        cmd = cli.StatusCommand()
+        cmd.handle([])
+        self.atm_mock.notes.get_notes.assert_called_once_with()
+        print_mock.assert_called_once_with('$20: 10')
+
+    @patch('__builtin__.print')
+    def test_dispense(self, print_mock):
+        self.atm_mock.dispense.return_value = [5, 5]
+        cmd = cli.DispenseCommand()
+        cmd.handle(["10"])
+        self.atm_mock.dispense.assert_called_once_with(10)
+        print_mock.assert_called_once_with(
+            'Dispensed successfully in following notes: $5, $5')
 
 if __name__ == '__main__':
     main()
